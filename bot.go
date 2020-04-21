@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"quotescsvparser"
 	"strconv"
 	"time"
 )
@@ -82,8 +83,10 @@ func getJSON(url string, target interface{}) error {
 }
 
 func sendMessageToUser(url string, chatID string, target interface{}) error {
-	quoteText := "<i>Drangan trakioiot HAHAHA</i>   -Isyana Sarasvati"
-	sendMessageAPI := url + "/sendMessage?chat_id=" + chatID + "&text=" + quoteText + "&parse_mode=HTML"
+	records := quotescsvparser.ReadQuotesCsvFile("quotes.csv")
+	quoteAuthor, quoteText := quotescsvparser.GetRandomQuote(records)
+	quote := "<i>" + quoteText + "</i>" + "  -" + quoteAuthor
+	sendMessageAPI := url + "/sendMessage?chat_id=" + chatID + "&text=" + quote + "&parse_mode=HTML"
 	return getJSON(sendMessageAPI, target)
 }
 
