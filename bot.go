@@ -68,7 +68,7 @@ type sendMessage struct {
 	} `json:"result"`
 }
 
-// Define yout Telegram Bot token
+// Define your Telegram Bot token
 var botToken = "<Your bot token>"
 
 var client = &http.Client{Timeout: 5 * time.Second}
@@ -90,7 +90,7 @@ func sendMessageToUser(url string, chatID string, target interface{}) error {
 	return getJSON(sendMessageAPI, target)
 }
 
-func periodicMessaging(apiURL string, err error) {
+func periodicMessaging(apiURL string, t time.Time, err error) {
 	userMsg := &getUpdates{}
 	sentMsg := &sendMessage{}
 	newMsgFlag := false
@@ -106,25 +106,29 @@ func periodicMessaging(apiURL string, err error) {
 	for _, value := range userMsg.Result {
 		if value.UpdateID > 0 {
 			lastBotUpdateID = value.UpdateID
-			fmt.Println("Message received!")
-			fmt.Println(lastBotUpdateID)
+			fmt.Print(t.Format(time.RFC850) + ": ")
+			fmt.Print("Message received! UpdateID: " + strconv.Itoa(lastBotUpdateID))
+			fmt.Print(" chatID: " + strconv.Itoa(value.Message.Chat.ID))
+			fmt.Print(" from: " + value.Message.From.Username)
 			newMsgFlag = true
-			chatID := strconv.Itoa(userMsg.Result[0].Message.Chat.ID)
+			chatID := strconv.Itoa(value.Message.Chat.ID)
 			err = sendMessageToUser(apiURL, chatID, &sentMsg)
 			if err != nil {
 				log.Fatal(err)
 				return
 			}
+			fmt.Println(" - replied!")
 		}
 	}
 
 	if !newMsgFlag {
-		fmt.Println("No new messages!")
+		fmt.Print(t.Format(time.RFC850) + ": ")
+		fmt.Println("No new messages...")
 		return
 	}
 
-	getNextUpdate := getUpdatesAPI + "?offset=" + strconv.Itoa(lastBotUpdateID+1)
-	_, err = client.Get(getNextUpdate)
+	nextMsgUpdate := getUpdatesAPI + "?offset=" + strconv.Itoa(lastBotUpdateID+1)
+	_, err = client.Get(nextMsgUpdate)
 	if err != nil {
 		log.Fatal(err)
 		return
@@ -150,8 +154,7 @@ func main() {
 
 	// Check message update every 5 seconds
 	for t := range time.NewTicker(5 * time.Second).C {
-		periodicMessaging(apiURL, err)
-		fmt.Println(t)
+		periodicMessaging(apiURL, t, err)
 	}
 
 }
