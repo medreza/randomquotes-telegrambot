@@ -68,7 +68,7 @@ type sendMessage struct {
 	} `json:"result"`
 }
 
-// Define your Telegram Bot token
+// Define yout Telegram Bot token
 var botToken = "<Your bot token>"
 
 var client = &http.Client{Timeout: 5 * time.Second}
@@ -83,24 +83,26 @@ func getJSON(url string, target interface{}) error {
 }
 
 func sendMessageToUser(url string, chatID string, target interface{}) error {
-	records := quotescsvparser.ReadQuotesCsvFile("quotes.csv")
+	records, err := quotescsvparser.ReadQuotesCsvFile("quotes.csv")
+	if err != nil {
+		log.Fatal(err)
+	}
 	quoteAuthor, quoteText := quotescsvparser.GetRandomQuote(records)
 	quote := "<i>" + quoteText + "</i>" + "  -" + quoteAuthor
 	sendMessageAPI := url + "/sendMessage?chat_id=" + chatID + "&text=" + quote + "&parse_mode=HTML"
 	return getJSON(sendMessageAPI, target)
 }
 
-func periodicMessaging(apiURL string, t time.Time, err error) {
+func periodicMessaging(apiURL string, t time.Time) error {
 	userMsg := &getUpdates{}
 	sentMsg := &sendMessage{}
 	newMsgFlag := false
 	lastBotUpdateID := 0
 
 	getUpdatesAPI := apiURL + "/getUpdates"
-	err = getJSON(getUpdatesAPI, &userMsg)
+	err := getJSON(getUpdatesAPI, &userMsg)
 	if err != nil {
-		log.Fatal(err)
-		return
+		return err
 	}
 
 	for _, value := range userMsg.Result {
@@ -114,8 +116,7 @@ func periodicMessaging(apiURL string, t time.Time, err error) {
 			chatID := strconv.Itoa(value.Message.Chat.ID)
 			err = sendMessageToUser(apiURL, chatID, &sentMsg)
 			if err != nil {
-				log.Fatal(err)
-				return
+				return err
 			}
 			fmt.Println(" - replied!")
 		}
@@ -124,15 +125,15 @@ func periodicMessaging(apiURL string, t time.Time, err error) {
 	if !newMsgFlag {
 		fmt.Print(t.Format(time.RFC850) + ": ")
 		fmt.Println("No new messages...")
-		return
+		return err
 	}
 
 	nextMsgUpdate := getUpdatesAPI + "?offset=" + strconv.Itoa(lastBotUpdateID+1)
 	_, err = client.Get(nextMsgUpdate)
 	if err != nil {
-		log.Fatal(err)
-		return
+		return err
 	}
+	return nil
 }
 
 func main() {
@@ -142,19 +143,21 @@ func main() {
 	getMeAPI := apiURL + "/getMe"
 	err = getJSON(getMeAPI, &botIdentity)
 	if err != nil {
-		log.Fatal(err)
 		return
 	} else if botIdentity.Result.IsBot {
 		fmt.Println("Bot name: " + botIdentity.Result.FirstName)
 		fmt.Println("Bot username: " + botIdentity.Result.Username)
 	} else {
-		fmt.Println("Provided token is not a Telegram bot token")
-		return
+		log.Fatal("Provided token is not a Telegram bot token.")
 	}
 
 	// Check message update every 5 seconds
 	for t := range time.NewTicker(5 * time.Second).C {
-		periodicMessaging(apiURL, t, err)
+		err = periodicMessaging(apiURL, t)
+		if err != nil {
+			fmt.Println()
+			fmt.Println("Error: " + err.Error())
+		}
 	}
 
 }

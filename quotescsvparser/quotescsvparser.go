@@ -2,26 +2,25 @@ package quotescsvparser
 
 import (
 	"encoding/csv"
-	"log"
 	"math/rand"
 	"os"
 	"time"
 )
 
-func ReadQuotesCsvFile(filePath string) [][]string {
+func ReadQuotesCsvFile(filePath string) ([][]string, error) {
 	f, err := os.Open(filePath)
 	if err != nil {
-		log.Fatal("Unable to read file: "+filePath, err)
+		return nil, err
 	}
 	defer f.Close()
 
 	csvReader := csv.NewReader(f)
 	records, err := csvReader.ReadAll()
 	if err != nil {
-		log.Fatal("Parsing failed for file: "+filePath, err)
+		return nil, err
 	}
 
-	return records
+	return records, nil
 }
 
 func GetRandomQuote(quotes [][]string) (string, string) {
